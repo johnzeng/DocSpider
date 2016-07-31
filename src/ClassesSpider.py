@@ -2,11 +2,22 @@
 import urllib
 import urllib2
 import re
+import os
+import urlparse
 
 class ClassesSpider:
   def __init__(self,root):
     self.rootUrl = root
     self.allClassUrl = self.rootUrl + 'allclasses-noframe.html'
+    user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+    self.headers = { 'User-Agent' : user_agent }
+
+  def createPath(self,file):
+    dirPathRe = re.compile('/[a-zA-Z0-9_]*\.html*')
+    docPath,_ = dirPathRe.subn("",file)
+    if os.path.exists(docPath) is not True :
+        os.makedirs(docPath)
+    return docPath
 
   def run(self):
     try:
@@ -26,16 +37,40 @@ class ClassesSpider:
         allClass = classReg.findall(rspMsg)
 
         flag = True
+        jsPahtRe = re.compile('src.*?=.*?"([./].*?\.js)"')
+        csPathRe = re.compile('href="(\..*?\.css)"')
+        methodSummaryReg = re.compile('<td class="colLast"><code><span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
         for cur in allClass:
           if flag:
             flag = False
-            classReq = urllib2.Request(self.rootUrl + cur[0])
+            classReq = urllib2.Request(self.rootUrl + cur[0], headers = self.headers)
+
+            curDir = self.createPath(cur[0])
+            print curDir
+            fileHanlder = open(cur[0], 'w')
             classRes = urllib2.urlopen(classReq)
             classMsg = classRes.read()
-            methodSummaryReg = re.compile('<td class="colLast"><code><span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
+            fileHanlder.write(classMsg)
             methodSummary = methodSummaryReg.findall(classMsg)
-            for methods in methodSummary:
-              print "link:%s, member:%s"%(methods[0], methods[1])
+#            for methods in methodSummary:
+#              print "link:%s, member:%s"%(methods[0], methods[1])
+#            jsFile = jsPahtRe.findall(classMsg)
+#            for files in jsFile:
+#              self.createPath(files)
+#              jsReq = urllib2.Request(self.rootUrl + files)
+#              jsRsp = urllib2.urlopen(jsReq)
+#              jsWriteFile = open(files,'w')
+#              jsWriteFile.write(jsRsp.read())
+            csFile = csPathRe.findall(classMsg)
+            for files in csFile:
+
+              downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
+              print "fetch css file :%s" % downloadPath
+              jsReq = urllib2.Request(downloadPath)
+              jsRsp = urllib2.urlopen(jsReq)
+              jsWriteFile = open(files,'w')
+              jsWriteFile.write(jsRsp.read())
+              print files
         
     except urllib2.URLError, e:
         if hasattr(e,"code"):
