@@ -11,19 +11,25 @@ import plistlib
 
 class ClassesSpider:
 
-  def __init__(self,root):
+  def __init__(self,root, docSetName):
     self.rootUrl = root
 #don't sure about index page, are they the same?
     self.allClassUrl = self.rootUrl + 'allclasses-noframe.html'
     user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
     self.headers = { 'User-Agent' : user_agent }
     self.searchedUrl = set()
-    self.createPath('./myDocSet.docset/Contents/Resources/docSet.dsidx')
-    self.connection = sqlite3.connect('./myDocSet.docset/Contents/Resources/docSet.dsidx')
+    self.docSetName = docSetName
+    self.createPath('./%s.docset/Contents/Resources/docSet.dsidx' % docSetName)
+    self.connection = sqlite3.connect('./%s.docset/Contents/Resources/docSet.dsidx' % docSetName)
     self.course = self.connection.cursor()
     self.course.execute('CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);')
     self.course.execute('CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);')
     self.insertStr = '''INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, ?, ?);'''
+
+    summaryPage = self.rootUrl + 'overview-summary.html'
+    summaryPageMsg = self.pullWeb(summaryPage)
+    self.write2File(summaryPageMsg, summaryPage)
+
     self.initPlist()
 
   def __del__(self):
@@ -32,14 +38,14 @@ class ClassesSpider:
 
   def initPlist(self):
     plistInfo = {
-        "Bundle identifier": "javadoc",
-        "Bundle name" : "mydoc",
+        "CFBundleIdentifier": "javadoc",
+        "CFBundleName" : "DocSet",
         "DocSetPlatformFamily": "javadoc",
-        "dashIndexFilePath" : "dash_javadoc/overview-summary.html",
+        "dashIndexFilePath" : "overview-summary.html",
         "DashDocSetFamily" :"java",
-        "isDashDocset":"YES"
+        "isDashDocset": "YES"
         }
-    plistlib.writePlist(plistInfo, './myDocSet.docset/Contents/Info.plist')
+    plistlib.writePlist(plistInfo, './%s.docset/Contents/Info.plist' %self.docSetName)
 
   def pullWeb(self, url):
     try:
@@ -67,11 +73,19 @@ class ClassesSpider:
     return ""
 
   def write2File(self, msg, url):
-    fileName = url.replace(self.rootUrl, "./myDocSet.docset/Contents/Resources/Documents/")
+    fileName = url.replace(self.rootUrl, "./%s.docset/Contents/Resources/Documents/" % self.docSetName)
     path = self.createPath(fileName)
     fileHandler = open(fileName,'w')
     fileHandler.write(msg)
-    return fileName.replace("./myDocSet.docset/Contents/Resources/Documents/","")
+    return fileName.replace("./%s.docset/Contents/Resources/Documents/" % self.docSetName,"")
+
+  def getClassName(self, url):
+    docSetNameReg = re.compile('(.*)\.html')
+    allClass = docSetNameReg.findall(url)
+    for path in allClass:
+      splited = path.split('/')
+      return ".".join(splited), splited[-1]
+    return "", ""
 
 
   def run(self):
@@ -98,7 +112,9 @@ class ClassesSpider:
             classMsg = self.pullWeb(requestUrl)
             #save msg
             fileName = self.write2File(classMsg, requestUrl)
-            self.course.execute(self.insertStr, (cur[0], 'class', fileName))
+            classNameA, classNameB = self.getClassName(fileName)
+            self.course.execute(self.insertStr, (classNameA, 'Class', fileName))
+            self.course.execute(self.insertStr, (classNameB, 'Class', fileName))
 
             methodSummary = methodSummaryReg.findall(classMsg)
             csFile = csPathRe.findall(classMsg)
@@ -114,6 +130,6 @@ class ClassesSpider:
 
 if __name__ == "__main__":
   rootUrl = 'http://api.mongodb.com/java/current/'
-  spider = ClassesSpider(rootUrl)
+  spider = ClassesSpider(rootUrl, "myDocSet")
   spider.run()
 
