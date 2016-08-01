@@ -37,7 +37,6 @@ class ClassesSpider:
         allClass = classReg.findall(rspMsg)
 
         flag = True
-        jsPahtRe = re.compile('src.*?=.*?"([./].*?\.js)"')
         csPathRe = re.compile('href="(\..*?\.css)"')
         methodSummaryReg = re.compile('<td class="colLast"><code><span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
         for cur in allClass:
@@ -55,15 +54,8 @@ class ClassesSpider:
 #            for methods in methodSummary:
 #              print "link:%s, member:%s"%(methods[0], methods[1])
 #            jsFile = jsPahtRe.findall(classMsg)
-#            for files in jsFile:
-#              self.createPath(files)
-#              jsReq = urllib2.Request(self.rootUrl + files)
-#              jsRsp = urllib2.urlopen(jsReq)
-#              jsWriteFile = open(files,'w')
-#              jsWriteFile.write(jsRsp.read())
             csFile = csPathRe.findall(classMsg)
             for files in csFile:
-
               downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
               print "fetch css file :%s" % downloadPath
               jsReq = urllib2.Request(downloadPath)
