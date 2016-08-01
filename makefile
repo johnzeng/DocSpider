@@ -1,4 +1,4 @@
 
 test:
-	- rm -rf myDocSet.docset/
+	- rm -rf JavaMongo.docset/
 	python ./src/ClassesSpider.py

@@ -73,6 +73,7 @@ class ClassesSpider:
     return ""
 
   def write2File(self, msg, url):
+    print "now save %s" % url
     fileName = url.replace(self.rootUrl, "./%s.docset/Contents/Resources/Documents/" % self.docSetName)
     path = self.createPath(fileName)
     fileHandler = open(fileName,'w')
@@ -102,27 +103,31 @@ class ClassesSpider:
         classReg = re.compile('<li><a href="(.*)".*?title="(.*?) in .*?"')
         allClass = classReg.findall(rspMsg)
 
-        flag = True
         csPathRe = re.compile('href="(\..*?\.css)"')
         methodSummaryReg = re.compile('<td class="colLast"><code><span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
         for cur in allClass:
-          if flag:
-            flag = False
-            requestUrl = self.rootUrl + cur[0]
-            classMsg = self.pullWeb(requestUrl)
-            #save msg
-            fileName = self.write2File(classMsg, requestUrl)
-            classNameA, classNameB = self.getClassName(fileName)
-            self.course.execute(self.insertStr, (classNameA, 'Class', fileName))
-            self.course.execute(self.insertStr, (classNameB, 'Class', fileName))
+          requestUrl = self.rootUrl + cur[0]
+          classMsg = self.pullWeb(requestUrl)
+          #save msg
+          fileName = self.write2File(classMsg, requestUrl)
+          classNameA, classNameB = self.getClassName(fileName)
 
-            methodSummary = methodSummaryReg.findall(classMsg)
-            csFile = csPathRe.findall(classMsg)
-            for files in csFile:
-              downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
-              cssFile = self.pullWeb(downloadPath)
-              if cssFile != "":
-                self.write2File(cssFile, downloadPath)
+          typeName = cur[1][0].capitalize() + cur[1][1:]
+          self.course.execute(self.insertStr, (classNameA, typeName, fileName))
+          self.course.execute(self.insertStr, (classNameB, typeName, fileName))
+
+          #find all method in this file and insert into the db
+          methodSummary = methodSummaryReg.findall(classMsg)
+          for method in methodSummary:
+            methodIndex = urlparse.urljoin(fileName, method[0])
+            self.course.execute(self.insertStr, (method[1], 'Method', methodIndex))
+          csFile = csPathRe.findall(classMsg)
+          for files in csFile:
+            downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
+            cssFile = self.pullWeb(downloadPath)
+            if cssFile != "":
+              self.write2File(cssFile, downloadPath)
+          break
     except:
         tb = traceback.format_exc()
         print(tb)
@@ -130,6 +135,6 @@ class ClassesSpider:
 
 if __name__ == "__main__":
   rootUrl = 'http://api.mongodb.com/java/current/'
-  spider = ClassesSpider(rootUrl, "myDocSet")
+  spider = ClassesSpider(rootUrl, "JavaMongo")
   spider.run()
 
