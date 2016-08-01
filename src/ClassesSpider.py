@@ -5,6 +5,7 @@ import re
 import os
 import urlparse
 import sys,traceback
+import sqlite3
 
 
 class ClassesSpider:
@@ -16,6 +17,16 @@ class ClassesSpider:
     user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
     self.headers = { 'User-Agent' : user_agent }
     self.searchedUrl = set()
+    self.createPath('./myDocSet.docset/Contents/Resources/docSet.dsidx')
+    self.connection = sqlite3.connect('./myDocSet.docset/Contents/Resources/docSet.dsidx')
+    self.course = self.connection.cursor()
+    self.course.execute('CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);')
+    self.course.execute('CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);')
+    self.insertStr = '''INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, ?, ?);'''
+
+  def __del__(self):
+    self.connection.commit()
+    self.connection.close()
 
   def pullWeb(self, url):
     try:
@@ -47,6 +58,7 @@ class ClassesSpider:
     path = self.createPath(fileName)
     fileHandler = open(fileName,'w')
     fileHandler.write(msg)
+    return fileName
 
 
   def run(self):
@@ -72,7 +84,8 @@ class ClassesSpider:
             requestUrl = self.rootUrl + cur[0]
             classMsg = self.pullWeb(requestUrl)
             #save msg
-            self.write2File(classMsg, requestUrl)
+            fileName = self.write2File(classMsg, requestUrl)
+            self.course.execute(self.insertStr, (cur[0], 'class', fileName))
 
             methodSummary = methodSummaryReg.findall(classMsg)
             csFile = csPathRe.findall(classMsg)
