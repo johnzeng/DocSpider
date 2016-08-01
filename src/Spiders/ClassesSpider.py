@@ -9,7 +9,7 @@ import sqlite3
 import plistlib
 
 
-class ClassesSpider:
+class Spider:
 
   def __init__(self,root, docSetName):
     self.rootUrl = root
@@ -135,6 +135,6 @@ class ClassesSpider:
 
 if __name__ == "__main__":
   rootUrl = 'http://api.mongodb.com/java/current/'
-  spider = ClassesSpider(rootUrl, "JavaMongo")
+  spider = Spider(rootUrl, "JavaMongo")
   spider.run()
 
