@@ -71,7 +71,7 @@ class ClassesSpider:
     path = self.createPath(fileName)
     fileHandler = open(fileName,'w')
     fileHandler.write(msg)
-    return fileName
+    return fileName.replace("./myDocSet.docset/Contents/Resources/Documents/","")
 
 
   def run(self):
