@@ -6,6 +6,7 @@ import os
 import urlparse
 import sys,traceback
 import sqlite3
+import plistlib
 
 
 class ClassesSpider:
@@ -23,10 +24,22 @@ class ClassesSpider:
     self.course.execute('CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);')
     self.course.execute('CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);')
     self.insertStr = '''INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, ?, ?);'''
+    self.initPlist()
 
   def __del__(self):
     self.connection.commit()
     self.connection.close()
+
+  def initPlist(self):
+    plistInfo = {
+        "Bundle identifier": "javadoc",
+        "Bundle name" : "mydoc",
+        "DocSetPlatformFamily": "javadoc",
+        "dashIndexFilePath" : "dash_javadoc/overview-summary.html",
+        "DashDocSetFamily" :"java",
+        "isDashDocset":"YES"
+        }
+    plistlib.writePlist(plistInfo, './myDocSet.docset/Contents/Info.plist')
 
   def pullWeb(self, url):
     try:
