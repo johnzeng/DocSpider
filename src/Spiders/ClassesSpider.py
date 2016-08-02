@@ -31,6 +31,15 @@ class Spider:
     self.write2File(summaryPageMsg, summaryPage)
 
     self.initPlist()
+    self.tagDic = {
+        'class':'Class',
+        'interface':'Interface',
+        'enum':'Enum',
+        'method':'Method',
+        'constructor':'Constructor',
+        'field':'Constant'
+
+       }
 
   def __del__(self):
     self.connection.commit()
@@ -39,7 +48,7 @@ class Spider:
   def initPlist(self):
     plistInfo = {
         "CFBundleIdentifier": "javadoc",
-        "CFBundleName" : "DocSet",
+        "CFBundleName" : self.docSetName,
         "DocSetPlatformFamily": "javadoc",
         "dashIndexFilePath" : "overview-summary.html",
         "DashDocSetFamily" :"java",
@@ -89,6 +98,13 @@ class Spider:
     return "", ""
 
 
+  def getTypeName(self, javaTag):
+    if javaTag in self.tagDic:
+      return self.tagDic[javaTag]
+    else:
+      print "unexpected tag:%s"%javaTag
+      return javaTag[0].capitalize() + javaTag[:1]
+    
   def run(self):
     try:
         #find the doc version
@@ -104,23 +120,30 @@ class Spider:
         allClass = classReg.findall(rspMsg)
 
         csPathRe = re.compile('href="(\..*?\.css)"')
-        methodSummaryReg = re.compile('<td class="colLast"><code><span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
+        pageReg = re.compile('<span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
+        allSummaryReg = re.compile('<div class="summary">.*?<a name="(.*?)\.summary">(.*?)</ul>', re.S)
         for cur in allClass:
+          if cur[0].find("com/mongodb/ReadConcern.html") == -1:
+            continue
           requestUrl = self.rootUrl + cur[0]
           classMsg = self.pullWeb(requestUrl)
           #save msg
           fileName = self.write2File(classMsg, requestUrl)
           classNameA, classNameB = self.getClassName(fileName)
 
-          typeName = cur[1][0].capitalize() + cur[1][1:]
+          typeName = self.getTypeName(cur[1])
           self.course.execute(self.insertStr, (classNameA, typeName, fileName))
           self.course.execute(self.insertStr, (classNameB, typeName, fileName))
 
           #find all method in this file and insert into the db
-          methodSummary = methodSummaryReg.findall(classMsg)
+          methodSummary = allSummaryReg.findall(classMsg)
           for method in methodSummary:
-            methodIndex = urlparse.urljoin(fileName, method[0])
-            self.course.execute(self.insertStr, (method[1], 'Method', methodIndex))
+            #find field summary at first
+            memberFields = pageReg.findall(method[1])
+            fieldType = self.getTypeName(method[0])
+            for field in memberFields:
+              methodIndex = urlparse.urljoin(fileName, field[0])
+              self.course.execute(self.insertStr, (field[1], fieldType, methodIndex))
           csFile = csPathRe.findall(classMsg)
           for files in csFile:
             downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
