@@ -32,9 +32,12 @@ class Spider:
 
     self.initPlist()
     self.tagDic = {
+        'annotation':'Annotation',
+        'nested.class':'Class',
         'class':'Class',
         'interface':'Interface',
         'enum':'Enum',
+        'enum.constant':'Enum',
         'method':'Method',
         'constructor':'Constructor',
         'field':'Constant'
@@ -123,8 +126,7 @@ class Spider:
         pageReg = re.compile('<span class="memberNameLink"><a href="(.*?#.*?)">(.*?)</a></span>')
         allSummaryReg = re.compile('<div class="summary">.*?<a name="(.*?)\.summary">(.*?)</ul>', re.S)
         for cur in allClass:
-          if cur[0].find("com/mongodb/ReadConcern.html") == -1:
-            continue
+          self.connection.commit()
           requestUrl = self.rootUrl + cur[0]
           classMsg = self.pullWeb(requestUrl)
           #save msg
@@ -150,7 +152,6 @@ class Spider:
             cssFile = self.pullWeb(downloadPath)
             if cssFile != "":
               self.write2File(cssFile, downloadPath)
-          break
     except:
         tb = traceback.format_exc()
         print(tb)
