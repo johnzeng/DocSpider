@@ -16,6 +16,7 @@ class SpiderPartsAlpha:
   ClassesRefRe = re.compile('<li><a href="(.*)".*?title="(.*?) in .*?"')
   CsRefRe = re.compile('href="(\..*?\.css)"')
   MemberRefRe = re.compile('<span class="memberNameLink"><a href="(.*?html#.*?)">(.*?)</a></span>')
+  SubClassRe = re.compile('<span class="memberNameLink"><a href="(.*?)" title="(.*?) in')
   SummaryRe = re.compile('<div class="summary">(.*?)<div class="details">', re.S)
   MemberSummaryRe = re.compile('<a name="(.*?)">(.*?)</ul>', re.S)
 
@@ -109,6 +110,7 @@ class Spider:
             print e.code
         if hasattr(e,"reason"):
             print e.reason
+        print "request:%s" % url
         return ""
 
   def pullSummaryPage(self):
@@ -163,6 +165,47 @@ class Spider:
       return ".".join(splited), splited[-1]
     return "", ""
 
+  def analyzeClassMsg(self, url, type):
+    classMsg = self.pullWeb(url)
+    #save classes
+    fileName = self.write2File(classMsg, url)
+    classNameA, classNameB = self.getClassName(fileName)
+
+    typeName = self.getTypeName(type)
+    self.db.insert(classNameA, typeName, fileName)
+    self.db.insert(classNameB, typeName, fileName)
+
+    #find all method in this file and insert into the db
+    methodSummaryStr = self.parts.SummaryRe.findall(classMsg)
+    for str in methodSummaryStr:
+      methodSummary = self.parts.MemberSummaryRe.findall(str)
+      for method in methodSummary:
+        #find field summary at first
+        if -1 == method[0].find(".summary"):
+          # if no summary is found, than this could be something like "method.inherited from xxx", so we just continue it
+          continue
+        memberFields = self.parts.MemberRefRe.findall(method[1])
+        fieldType = self.getTypeName(method[0].replace(".summary",""))
+        print fieldType,method[0]
+        if 'Class' == fieldType:
+          SubClasses = self.parts.SubClassRe.findall(method[1])
+          for subClass in SubClasses:
+            print subClass
+            methodUrl = urlparse.urljoin(url, subClass[0])
+            print url,methodUrl, subClass[1]
+            self.analyzeClassMsg(methodUrl, subClass[1])
+        else:
+          for field in memberFields:
+            print field
+            methodIndex = urlparse.urljoin(fileName, field[0])
+            self.db.insert(field[1], fieldType, methodIndex)
+        
+      csFile = self.parts.CsRefRe.findall(classMsg)
+      for files in csFile:
+        downloadPath = urlparse.urljoin(url,  files)
+        cssFile = self.pullWeb(downloadPath)
+        if cssFile != "":
+          self.write2File(cssFile, downloadPath)
 
   def getTypeName(self, javaTag):
     if javaTag in self.tagDic:
@@ -182,47 +225,14 @@ class Spider:
         #find the classes and interfaces, also find the href
 #        self.pullSummaryPage()
 
-        classReg = self.parts.ClassesRefRe
-        allClass = classReg.findall(rspMsg)
+        allClass = self.parts.ClassesRefRe.findall(rspMsg)
 
-        csPathRe = self.parts.CsRefRe
-        allSummaryStrReg = self.parts.SummaryRe
-        allSummaryReg = self.parts.MemberSummaryRe
-        pageReg = self.parts.MemberRefRe
 
         for cur in allClass:
           self.db.commit()
           requestUrl = self.rootUrl + cur[0]
-          classMsg = self.pullWeb(requestUrl)
-          #save classes
-          fileName = self.write2File(classMsg, requestUrl)
-          classNameA, classNameB = self.getClassName(fileName)
-
-          typeName = self.getTypeName(cur[1])
-          self.db.insert(classNameA, typeName, fileName)
-          self.db.insert(classNameB, typeName, fileName)
-
-          #find all method in this file and insert into the db
-          methodSummaryStr = allSummaryStrReg.findall(classMsg)
-          for str in methodSummaryStr:
-            methodSummary = allSummaryReg.findall(str)
-            for method in methodSummary:
-              #find field summary at first
-              if -1 == method[0].find(".summary"):
-                # if no summary is found, than this could be something like "method.inherited from xxx", so we just continue it
-                continue
-              memberFields = pageReg.findall(method[1])
-
-              fieldType = self.getTypeName(method[0].replace(".summary",""))
-              for field in memberFields:
-                methodIndex = urlparse.urljoin(fileName, field[0])
-                self.db.insert(field[1], fieldType, methodIndex)
-            csFile = csPathRe.findall(classMsg)
-            for files in csFile:
-              downloadPath = urlparse.urljoin(self.rootUrl + cur[0],  files)
-              cssFile = self.pullWeb(downloadPath)
-              if cssFile != "":
-                self.write2File(cssFile, downloadPath)
+          self.analyzeClassMsg(requestUrl, cur[1])
+          break
     except:
         tb = traceback.format_exc()
         print(tb)
