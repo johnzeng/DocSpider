@@ -1,11 +1,12 @@
 import unittest
+import urllib2
 import ClassesSpider
 import sys,traceback
 
 class PartsTester:
     def brufPull(self, url):
       #This is a tester, so should get error if any wrong is happen
-      request = urllib2.Request(root )
+      request = urllib2.Request(url)
       response = urllib2.urlopen(request)
       msg = response.read()
       return msg
@@ -33,24 +34,23 @@ class PartsTester:
             methodFlag = False
             nestedClassFlag = True
             for c in classes:
+                print "get page:" + c[0]
                 if c[0].replace(".html","").replace("/",".") in tcSet:
                     #only test the listed classes
-                    classPage = self.brufPull(root + c[0])
-                    for s in parts.SummaryRe(classPage):
-                        for ss in parts.MemberSummaryRe(s):
+                    print url + c[0]
+                    classPage = self.brufPull(url + c[0])
+                    for s in parts.SummaryRe.findall(classPage):
+                        for ss in parts.MemberSummaryRe.findall(s):
                             if ss[0].find("nested") != -1:
                                 nestedClassFlag = False
                                 for nestedC in parts.SubClassRe.findall(ss[1]) :
+                                    print "get nestedClass:" + nestedC[0]
                                     nestedClassFlag = True
-                            else
+                            else:
                                 for methods in parts.MemberRefRe.findall(ss[1]):
+                                    print "get method:" + methods[0]
                                     methodFlag = True
             return methodFlag and nestedClassFlag
-
-
-            
-
-
         except:
             tb = traceback.format_exc()
             print(tb)
@@ -58,21 +58,22 @@ class PartsTester:
 
 
 class TestStringMethods(unittest.TestCase):
-    def test_whole(self):
-      rootUrl = 'http://api.mongodb.com/java/current/'
-      spider = ClassesSpider.Spider(rootUrl, "JavaMongo")
-      try:
-          spider.run()
-        except:
-            tb = traceback.format_exc()
-            print(tb)
+#    def test_whole(self):
+#      rootUrl = 'http://api.mongodb.com/java/current/'
+#      spider = ClassesSpider.Spider(rootUrl, "JavaMongo")
+#      try:
+#          spider.run()
+#        except:
+#            tb = traceback.format_exc()
+#            print(tb)
 
 
-    def test_AlphaParts(self):
+    def test_AlphaParts(self,):
       parts = ClassesSpider.SpiderPartsAlpha
       url = 'http://api.mongodb.com/java/current/'
       tester = PartsTester()
-      tester.RunTest(parts, "1.8.0", url)
+      ret = tester.RunTest(parts, "1.8.0", url, ['org.bson.AbstractBsonReader', 'com.mongodb.WriteConcern'])
+      self.assertTrue(ret)
 
 if __name__ == '__main__':
     unittest.main()
