@@ -5,8 +5,8 @@ import sys,traceback
 import logging  
 import logging.handlers  
   
-handler = logging.StreamHandler()
-fmt = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'  
+handler = logging.StreamHandler(sys.stdout)
+fmt = '%(asctime)s |%(filename)s:%(lineno)s |%(name)s :%(message)s'  
   
 formatter = logging.Formatter(fmt)
 handler.setFormatter(formatter)
