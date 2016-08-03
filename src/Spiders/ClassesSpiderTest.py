@@ -2,7 +2,21 @@ import unittest
 import urllib2
 import ClassesSpider
 import sys,traceback
-
+import logging  
+import logging.handlers  
+  
+handler = logging.StreamHandler()
+fmt = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'  
+  
+formatter = logging.Formatter(fmt)
+handler.setFormatter(formatter)
+  
+logger = logging.getLogger('Tester')
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)  
+  
+logger.info('first info message')  
+logger.debug('first debug message') 
 class PartsTester:
     def brufPull(self, url):
       #This is a tester, so should get error if any wrong is happen
@@ -34,26 +48,26 @@ class PartsTester:
             methodFlag = False
             nestedClassFlag = True
             for c in classes:
-                print "get page:" + c[0]
+                logger.debug("get page:" + c[0])
                 if c[0].replace(".html","").replace("/",".") in tcSet:
                     #only test the listed classes
-                    print url + c[0]
+                    logger.debug(url + c[0])
                     classPage = self.brufPull(url + c[0])
                     for s in parts.SummaryRe.findall(classPage):
                         for ss in parts.MemberSummaryRe.findall(s):
                             if ss[0].find("nested") != -1:
                                 nestedClassFlag = False
                                 for nestedC in parts.SubClassRe.findall(ss[1]) :
-                                    print "get nestedClass:" + nestedC[0]
+                                    logger.debug("get nestedClass:" + nestedC[0])
                                     nestedClassFlag = True
                             else:
                                 for methods in parts.MemberRefRe.findall(ss[1]):
-                                    print "get method:" + methods[0]
+                                    logger.debug("get method:" + methods[0])
                                     methodFlag = True
             return methodFlag and nestedClassFlag
         except:
             tb = traceback.format_exc()
-            print(tb)
+            logger.error(tb)
             return False
 
 
