@@ -122,6 +122,8 @@ class Spider:
     for package in allPackages:
         packageRequest = urlparse.urljoin(summaryPage, package[0])
         packageMsg = self.pullWeb(packageRequest)
+        if "" == packageMsg:
+            continue
         packagePath = self.write2File(packageMsg, packageRequest)
         name = self.getClassName(packagePath)
         self.db.insert(name[0], "Package", packagePath)
@@ -156,6 +158,7 @@ class Spider:
     path = self.createPath(fileName)
     fileHandler = open(fileName,'w')
     fileHandler.write(msg)
+    fileHandler.close()
     return fileName.replace("./%s.docset/Contents/Resources/Documents/" % self.docSetName,"")
 
   def getClassName(self, url):
@@ -167,6 +170,8 @@ class Spider:
 
   def analyzeClassMsg(self, url, type):
     classMsg = self.pullWeb(url)
+    if "" == classMsg:
+        return
     #save classes
     fileName = self.write2File(classMsg, url)
     classNameA, classNameB = self.getClassName(fileName)
@@ -186,17 +191,13 @@ class Spider:
           continue
         memberFields = self.parts.MemberRefRe.findall(method[1])
         fieldType = self.getTypeName(method[0].replace(".summary",""))
-        print fieldType,method[0]
         if 'Class' == fieldType:
           SubClasses = self.parts.SubClassRe.findall(method[1])
           for subClass in SubClasses:
-            print subClass
             methodUrl = urlparse.urljoin(url, subClass[0])
-            print url,methodUrl, subClass[1]
             self.analyzeClassMsg(methodUrl, subClass[1])
         else:
           for field in memberFields:
-            print field
             methodIndex = urlparse.urljoin(fileName, field[0])
             self.db.insert(field[1], fieldType, methodIndex)
         
@@ -232,7 +233,6 @@ class Spider:
           self.db.commit()
           requestUrl = self.rootUrl + cur[0]
           self.analyzeClassMsg(requestUrl, cur[1])
-          break
     except:
         tb = traceback.format_exc()
         print(tb)
