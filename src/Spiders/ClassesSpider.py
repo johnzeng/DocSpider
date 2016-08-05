@@ -7,7 +7,18 @@ import urlparse
 import sys,traceback
 import sqlite3
 import plistlib
+import logging  
+import logging.handlers  
 
+handler = logging.StreamHandler(sys.stdout)
+fmt = '%(asctime)s |%(filename)s:%(lineno)s |%(name)s :%(message)s'  
+  
+formatter = logging.Formatter(fmt)
+handler.setFormatter(formatter)
+  
+logger = logging.getLogger('Tester')
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG) 
 
 class SpiderPartsAlpha:
     #this spider is created for 1.8.0_xx javadoc set, I beleive they should be same so far
@@ -24,11 +35,11 @@ class SpiderPartsAlpha:
 class SpiderPartsBeta(SpiderPartsAlpha):
     #this spider is created for 1.6.0_xx javadoc set, I beleive they should be same so far
     PackageRefRe = re.compile('<A HREF="(.*?\.html)">([^ <]*?)</A>')
-    ClassesRefRe = re.compile('<A HREF="(.*)".*?title="(.*?) in .*?"')
-    SummaryRe = re.compile('(<!-- ========.*?SUMMARY.*?)DETAIL ========', re.S)
-    MemberSummaryRe = re.compile('<!-- ======== (.*?) SUMMARY ========(.*?)</TABLE>', re.S)
+    ClassesRefRe = re.compile('<A HREF="(.*)".*?title="([^ "].*?) in .*?"')
+    SummaryRe = re.compile('(<!-- ========[^=]*?SUMMARY.*?)DETAIL', re.S)
+    MemberSummaryRe = re.compile('<!-- ======== ([^=\n]*?SUMMARY) =====(.*?)</TABLE>', re.S)
     SubClassRe = ClassesRefRe
-    MemberRefRe = re.compile('<A HREF="(.*?html#.*?)">(.*?)</A>')
+    MemberRefRe = re.compile('<A HREF="([^:]*?html#[^\n"]*?)">([^ <"]*?)</A>')
 
 class SpiderParts:
     VersionMap = {
@@ -39,25 +50,26 @@ class SpiderParts:
 
     @staticmethod
     def getSpider(root):
-      #find the doc version
-      try:
-          request = urllib2.Request(root )
-          response = urllib2.urlopen(request)
-          msg = response.read()
-          versionMatch = SpiderParts.versionReg.findall(msg)
-          for version in versionMatch:
-              print "The doc version is " + version
-              for key, value in SpiderParts.VersionMap.items():
-                if version.find(key) != -1:
-                    print "match spider found"
-                    return value
-          return None
-      except urllib2.URLError, e:
-          if hasattr(e,"code"):
-              print e.code
-          if hasattr(e,"reason"):
-              print e.reason
-          return None
+        #find the doc version
+        try:
+            request = urllib2.Request(root )
+            response = urllib2.urlopen(request)
+            msg = response.read()
+            versionMatch = SpiderParts.versionReg.findall(msg)
+            for version in versionMatch:
+                logger.debug("The doc version is " + version)
+                for key, value in SpiderParts.VersionMap.items():
+                  if version.find(key) != -1:
+                      logger.debug("match spider found")
+                      return value
+            logger.debug(msg)
+            return None
+        except urllib2.URLError, e:
+            if hasattr(e,"code"):
+                logger.error(e.code)
+            if hasattr(e,"reason"):
+                logger.error(e.reason)
+            return None
     
 
 class IndexDataBase:
@@ -82,15 +94,18 @@ class IndexDataBase:
 class Spider:
       ##const parameters
     dirPathRe = re.compile('(.*)/')
-    docSetNameReg = re.compile('(.*)\.html')
+    docSetNameReg = re.compile('(.*)\.html*')
+    rootUrlReg = re.compile('(.*/).*?\.html*')
 
     def __init__(self,root, docSetName):
         self.createPath('./%s.docset/Contents/Resources/Documents/test.txt' % docSetName)
         self.rootUrl = root
+        for docRoot in Spider.rootUrlReg.findall(root):
+            # if the root is with html, should remove the html tail
+            self.rootUrl = docRoot
+        logger.debug("root url is:" + self.rootUrl)
         self.parts = SpiderParts.getSpider(root)
 #don't sure about index page, are they the same?
-        user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-        self.headers = { 'User-Agent' : user_agent }
         self.searchedUrl = set()
         self.docSetName = docSetName
         self.initPlist()
@@ -111,21 +126,23 @@ class Spider:
         try:
             if url in self.searchedUrl:
               return ""
-            request = urllib2.Request(url,headers = self.headers)
+#            request = urllib2.Request(url,headers = self.headers)
+            request = urllib2.Request(url,)
             response = urllib2.urlopen(request)
             rspMsg = response.read()
             self.searchedUrl.add(url)
             return rspMsg
         except urllib2.URLError, e:
             if hasattr(e,"code"):
-                print e.code
+                logger.error(e.code)
             if hasattr(e,"reason"):
-                print e.reason
-            print "request:%s" % url
+                logger.error(e.reason)
+            logger.error("request:%s" % url)
             return ""
 
     def pullSummaryPage(self):
-        summaryPage = self.rootUrl + self.parts.PackageSummaryPage
+        summaryPage = urlparse.urljoin(self.rootUrl , self.parts.PackageSummaryPage)
+        logger.debug("the summary page is:" + summaryPage)
         summaryPageMsg = self.pullWeb(summaryPage)
         self.write2File(summaryPageMsg, summaryPage)
         packageRe = self.parts.PackageRefRe
@@ -146,7 +163,7 @@ class Spider:
             "CFBundleIdentifier": "javadoc",
             "CFBundleName" : self.docSetName,
             "DocSetPlatformFamily": "javadoc",
-            "dashIndexFilePath" : "overview-summary.html",
+            "dashIndexFilePath" : self.parts.PackageSummaryPage,
             "DashDocSetFamily" :"java",
             "isDashDocset": "YES"
             }
@@ -164,8 +181,8 @@ class Spider:
       return ""
 
     def write2File(self, msg, url):
-        print "now save %s" % url
         fileName = url.replace(self.rootUrl, "./%s.docset/Contents/Resources/Documents/" % self.docSetName)
+        logger.debug("now save %s to %s" % (url, fileName) )
         path = self.createPath(fileName)
         fileHandler = open(fileName,'w')
         fileHandler.write(msg)
@@ -197,7 +214,7 @@ class Spider:
             methodSummary = self.parts.MemberSummaryRe.findall(str)
             for method in methodSummary:
                 #find field summary at first
-                if -1 == method[0].find(".summary"):
+                if -1 == method[0].lower().find("summary"):
                   # if no summary is found, than this could be something like "method.inherited from xxx", so we just continue it
                     continue
                 memberFields = self.parts.MemberRefRe.findall(method[1])
@@ -205,10 +222,12 @@ class Spider:
                 if 'Class' == fieldType:
                     SubClasses = self.parts.SubClassRe.findall(method[1])
                     for subClass in SubClasses:
+                        logger.debug("find subClass" + subClass)
                         methodUrl = urlparse.urljoin(url, subClass[0])
                         self.analyzeClassMsg(methodUrl, subClass[1])
                 else:
                     for field in memberFields:
+                        logger.debug("find method(%s, %s)" % field)
                         methodIndex = urlparse.urljoin(fileName, field[0])
                         self.db.insert(field[1], fieldType, methodIndex)
               
@@ -225,14 +244,14 @@ class Spider:
         else:
             #check mapping
             for key in self.tagDic:
-                if -1 != java.Tag.lower().find(key):
+                if -1 != javaTag.lower().find(key):
                     return self.tagDic[key]
-            print "unexpected tag:%s"%javaTag
+            logger.error("unexpected tag:%s"%javaTag)
             return ""
     
     def run(self):
         try:
-            allClassUrl = self.rootUrl + self.parts.ClassesListPage
+            allClassUrl = urlparse.urljoin(self.rootUrl , self.parts.ClassesListPage)
             rspMsg = self.pullWeb(allClassUrl)
             # also save method list
             self.write2File(rspMsg, allClassUrl)
@@ -240,15 +259,12 @@ class Spider:
             # I don't care if this is a doc or not, just get the first one, if nothing exist, panic will rasie    
             #find the classes and interfaces, also find the href
             self.pullSummaryPage()
-    
             allClass = self.parts.ClassesRefRe.findall(rspMsg)
-    
-    
             for cur in allClass:
               self.db.commit()
-              requestUrl = self.rootUrl + cur[0]
+              requestUrl = urlparse.urljoin(self.rootUrl , cur[0])
               self.analyzeClassMsg(requestUrl, cur[1])
         except:
             tb = traceback.format_exc()
-            print(tb)
+            logger.error(tb)
 
