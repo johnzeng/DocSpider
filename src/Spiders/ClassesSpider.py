@@ -221,6 +221,8 @@ class Spider:
     
         #find all method in this file and insert into the db
         methodSummaryStr = self.parts.SummaryRe.findall(classMsg)
+        if len(methodSummaryStr) == 0:
+            logger.error("can not get any summary for page: %s!" %(url))
         for str in methodSummaryStr:
             methodSummary = self.parts.MemberSummaryRe.findall(str)
             for method in methodSummary:
