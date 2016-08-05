@@ -72,7 +72,7 @@ class PartsTester:
                                     return False
                             else:
                                 for methods in parts.MemberRefRe.findall(ss[1]):
-                                    logger.debug("get method:" + methods[0])
+                                    logger.debug("get method: %s,%s" % methods)
                                     methodFlag = True
             logger.debug("flasg:%d %d" %(methodFlag, nestedClassFlag))
             return methodFlag and nestedClassFlag
@@ -104,8 +104,8 @@ if __name__ == '__main__':
     alphaSuite = unittest.TestLoader().loadTestsFromTestCase(TestAlpha)
     betaSuite = unittest.TestLoader().loadTestsFromTestCase(TestBeta)
     alltests = unittest.TestSuite([
-        betaSuite
-#        alphaSuite
+        betaSuite,
+        alphaSuite
         ])
     unittest.TextTestRunner(verbosity=2).run(alltests)
 

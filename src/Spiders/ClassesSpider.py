@@ -37,9 +37,10 @@ class SpiderPartsBeta(SpiderPartsAlpha):
     PackageRefRe = re.compile('<A HREF="(.*?\.html)">([^ <]*?)</A>')
     ClassesRefRe = re.compile('<A HREF="(.*)".*?title="([^ "].*?) in .*?"')
     SummaryRe = re.compile('(<!-- ========[^=]*?SUMMARY.*?)DETAIL', re.S)
-    MemberSummaryRe = re.compile('<!-- ======== ([^=\n]*?SUMMARY) =====(.*?)</TABLE>', re.S)
+    MemberSummaryRe = re.compile('<!-- ========(.*?SUMMARY)(.*?)</TABLE>', re.S)
     SubClassRe = ClassesRefRe
-    MemberRefRe = re.compile('<A HREF="([^:]*?html#[^\n"]*?)">([^ <"]*?)</A>')
+    #<A HREF="../../org/bson/BasicBSONCallback.html#_put(java.lang.String, java.lang.Object)">_put</A>
+    MemberRefRe = re.compile('<A HREF="([^:]*?)">([^ <"]*?)</A>')
 
 class SpiderParts:
     VersionMap = {
@@ -222,7 +223,7 @@ class Spider:
                 if 'Class' == fieldType:
                     SubClasses = self.parts.SubClassRe.findall(method[1])
                     for subClass in SubClasses:
-                        logger.debug("find subClass" + subClass)
+                        logger.debug("find subClass:%s,%s" % subClass)
                         methodUrl = urlparse.urljoin(url, subClass[0])
                         self.analyzeClassMsg(methodUrl, subClass[1])
                 else:
