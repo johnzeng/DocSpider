@@ -7,18 +7,9 @@ import urlparse
 import sys,traceback
 import sqlite3
 import plistlib
-import logging  
-import logging.handlers  
+import SpiderLog
 
-handler = logging.StreamHandler(sys.stdout)
-fmt = '%(asctime)s |%(filename)s:%(lineno)s |%(name)s :%(message)s'  
-  
-formatter = logging.Formatter(fmt)
-handler.setFormatter(formatter)
-  
-logger = logging.getLogger('Tester')
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG) 
+logger = SpiderLog.getLogger()
 
 class SpiderPartsAlpha:
     #this spider is created for 1.8.0_xx javadoc set, I beleive they should be same so far

@@ -1,6 +1,7 @@
 import unittest
 import urllib2
 import ClassesSpider
+import SpiderLog
 import sys,traceback
 import urlparse
 import logging  
@@ -99,7 +100,8 @@ class TestAlpha(unittest.TestCase):
         self.assertTrue(ret)
 
 
-logger = logging.getLogger('Tester')
+logger = SpiderLog.getLogger()
+
 if __name__ == '__main__':
     alphaSuite = unittest.TestLoader().loadTestsFromTestCase(TestAlpha)
     betaSuite = unittest.TestLoader().loadTestsFromTestCase(TestBeta)
