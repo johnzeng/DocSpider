@@ -22,14 +22,24 @@ logger.setLevel(logging.DEBUG)
 
 class SpiderPartsAlpha:
     #this spider is created for 1.8.0_xx javadoc set, I beleive they should be same so far
+
+    #provide the allclasses page, please use the noframe page
     ClassesListPage = 'allclasses-noframe.html'
+    #provide the package page, please use the no frame page
     PackageSummaryPage = 'overview-summary.html'
+    #pravide the re to grab the package link , in tuple (link, package name)
     PackageRefRe = re.compile('<td class="colFirst"><a href="(.*?)">(.*?)</a></td>')
+    #pravide the re to grab the classes link in a class list page, in tuple (link, class type)
     ClassesRefRe = re.compile('<li><a href="(.*)".*?title="(.*?) in .*?"')
+    #pravide the re to grab the css file, other wise you will get a ugly page
     CsRefRe = re.compile('href="(\..*?\.css)"')
+    #pravide the re to grab the methods in a class page, in tuple(link, method name)
     MemberRefRe = re.compile('<span class="memberNameLink"><a href="(.*?html#.*?)">(.*?)</a></span>')
+    #pravide the re to grab the class in a class page, in tuple(link, class type)
     SubClassRe = re.compile('<span class="memberNameLink"><a href="(.*?)" title="(.*?) in')
+    #pravide the re to grab the whole summary table in a class page (including the method summary, constructor summary, field summary, sub class summary)
     SummaryRe = re.compile('<div class="summary">(.*?)<div class="details">', re.S)
+    #pravide the re to grab the sub summary table in a class page (please spilt the xx summary into different matching)
     MemberSummaryRe = re.compile('<a name="(.*?)">(.*?)</ul>', re.S)
 
 class SpiderPartsBeta(SpiderPartsAlpha):
