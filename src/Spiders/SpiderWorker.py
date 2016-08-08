@@ -35,7 +35,6 @@ class WorkerCore(threading.Thread):
     def __init__(self,iq,oq):
         threading.Thread.__init__(self)
         self.canRun = True
-        self.running = False
         self.inQue = iq
         self.outQue = oq
 

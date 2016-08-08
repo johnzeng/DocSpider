@@ -3,6 +3,7 @@ import threading
 import SpiderQueue
 import SpiderWorker
 import Queue
+import ClassesSpider
 
 logger = SpiderLog.getLogger()
 
@@ -22,8 +23,11 @@ class SpiderHandler(threading.Thread):
         self.id = 1
         self.inQue.put(SpiderQueue.SpiderWorker(rootUrl, self.id))
         self.handlerMap[self.id] = CONST_ROOT_URL
-        self.running = False
         self.canRun = True
+
+    def stop(self):
+        self.outQue.join()
+        self.canRun = False
 
     def doJob(self):
         if(self.outQue.qsize() > 0):
@@ -70,7 +74,6 @@ class SpiderHandler(threading.Thread):
     def run(self):
         # now worker run
         self.worker.run()
-        self.running = True
         while self.canRun:
             self.doOneJob()
             logger.debug("handler heart beat")

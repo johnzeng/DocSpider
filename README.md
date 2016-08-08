@@ -50,4 +50,6 @@ Java doc:1.6.0_xx
 ##known limitation
 - Just grab the package summary pages , method pages, all classes page, all package page. Thus you will find some link unavailable but it shouldn't be a problem.
 - Don't grab images, I don't sure if these are important, I may grab it in the future.
+- This project is using only one thread to do everything, so it's a little slow and I don't wanna do multi-threading on this project recently.
+
 
